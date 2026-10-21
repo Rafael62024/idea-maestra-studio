@@ -1,0 +1,37 @@
+const products = [
+  {id:"maqueta-barrio",name:"Maqueta: Mi comunidad",category:"Maquetas",price:45,emoji:"🏘️",color:"#d9ebc9",description:"Una escena en miniatura con detalles personalizados.",tag:"Favorito"},
+  {id:"maqueta-ecosistema",name:"Maqueta: Ecosistema",category:"Maquetas",price:48,emoji:"🌳",color:"#c6e9df",description:"Naturaleza, animales y aprendizaje en una sola pieza.",tag:"A pedido"},
+  {id:"lapbook",name:"Lapbook interactivo",category:"Proyectos",price:30,emoji:"📖",color:"#f6d8c7",description:"Solapas y recursos para explicar un tema con claridad.",tag:"Personalizable"},
+  {id:"triptico",name:"Tríptico escolar",category:"Proyectos",price:15,emoji:"📋",color:"#f7e4a9",description:"Diseño colorido, ordenado y listo para presentar.",tag:"Desde"},
+  {id:"ruleta",name:"Ruleta de aprendizaje",category:"Material didáctico",price:22,emoji:"🎡",color:"#f7c8c4",description:"Un recurso entretenido para repasar y jugar.",tag:"Aprender jugando"},
+  {id:"llavero",name:"Llavero con tabla",category:"Material didáctico",price:3,emoji:"🔑",color:"#d3e8ef",description:"Un recordatorio práctico para llevar a todas partes.",tag:"Desde"},
+  {id:"stickers",name:"Stickers personalizados",category:"Detalles",price:8,emoji:"🌈",color:"#eddbf0",description:"Diseñados para tu salón, evento o emprendimiento.",tag:"Set desde"},
+  {id:"kit-fiesta",name:"Kit de detalles escolares",category:"Detalles",price:25,emoji:"🎁",color:"#ffe2ad",description:"Un detalle alegre para fechas y celebraciones.",tag:"A pedido"}
+];
+const cfg = window.STORE_CONFIG || {name:"Idea Maestra Studio",whatsapp:"51900000000",currency:"S/",currencyLocale:"es-PE"};
+const cart = new Map();
+let activeFilter = "Todos";
+let searchTerm = "";
+let toastTimer;
+const $ = (sel,root=document)=>root.querySelector(sel);
+const $$ = (sel,root=document)=>[...root.querySelectorAll(sel)];
+const money = n => `${cfg.currency} ${Number(n).toFixed(2)}`;
+function filteredProducts(){return products.filter(p=>(activeFilter==="Todos"||p.category===activeFilter)&&`${p.name} ${p.category} ${p.description}`.toLowerCase().includes(searchTerm.toLowerCase()))}
+function renderProducts(){const list=filteredProducts();$('#product-grid').innerHTML=list.map(p=>`<article class="product-card"><div class="product-art" style="background:${p.color}"><span class="product-tag">${p.tag}</span><span class="product-emoji" aria-hidden="true">${p.emoji}</span></div><div class="product-content"><span class="product-category">${p.category}</span><h3>${p.name}</h3><p class="product-description">${p.description}</p><div class="product-meta"><span class="price">${money(p.price)} <small>ref.</small></span><span class="rating" aria-label="Diseño personalizado">✦ ✦ ✦</span></div><button class="add-button" data-add="${p.id}">Agregar al pedido <span>＋</span></button></div></article>`).join('');$('#empty-state').hidden=list.length!==0;$('#results-count').textContent=`${list.length} ${list.length===1?'idea':'ideas'}`}
+function cartQuantity(){return [...cart.values()].reduce((sum,item)=>sum+item.qty,0)}
+function renderCart(){const items=[...cart.values()];$('#cart-count').textContent=cartQuantity();$('#cart-empty').hidden=items.length>0;$('#cart-items').innerHTML=items.map(({product:p,qty})=>`<div class="cart-line"><div class="cart-line-art" style="background:${p.color}">${p.emoji}</div><div><h3>${p.name}</h3><small>${money(p.price)} · precio referencial</small><div class="qty-controls"><button data-qty="${p.id}" data-change="-1" aria-label="Quitar uno">−</button><span>${qty}</span><button data-qty="${p.id}" data-change="1" aria-label="Agregar uno">+</button></div></div><span class="line-price">${money(p.price*qty)}</span></div>`).join('');const total=items.reduce((sum,item)=>sum+item.product.price*item.qty,0);$('#cart-total').textContent=money(total);$('#checkout-button').disabled=items.length===0}
+function showToast(message){const el=$('#toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2200)}
+function openCart(){ $('#cart-drawer').classList.add('open');$('#drawer-backdrop').classList.add('open');$('#cart-drawer').setAttribute('aria-hidden','false');document.body.style.overflow='hidden';$('#cart-close').focus() }
+function closeCart(){ $('#cart-drawer').classList.remove('open');$('#drawer-backdrop').classList.remove('open');$('#cart-drawer').setAttribute('aria-hidden','true');document.body.style.overflow='';$('#cart-open').focus() }
+function addToCart(id){const p=products.find(p=>p.id===id);if(!p)return;const old=cart.get(id);cart.set(id,{product:p,qty:(old?.qty||0)+1});renderCart();showToast(`${p.name} se agregó a tu pedido`)}
+function whatsappUrl(message){const phone=(cfg.whatsapp||'').replace(/\D/g,'');return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`}
+function checkout(){const lines=[...cart.values()].map(({product:p,qty})=>`• ${p.name} x${qty} — ${money(p.price*qty)}`);if(!lines.length)return;const total=[...cart.values()].reduce((s,i)=>s+i.product.price*i.qty,0);const msg=`¡Hola, ${cfg.name}! Quisiera consultar por este pedido:\n\n${lines.join('\n')}\n\nTotal referencial: ${money(total)}\n\n¿Me ayudan a confirmar detalles, disponibilidad y entrega?`;window.open(whatsappUrl(msg),'_blank','noopener,noreferrer')}
+function contactSubmit(e){e.preventDefault();const data=new FormData(e.currentTarget);const name=data.get('name').trim();const interest=data.get('interest');const message=data.get('message').trim();const text=`¡Hola, ${cfg.name}! Soy ${name}. Me interesa: ${interest}.\n\n${message}\n\n¿Podrían ayudarme con una cotización?`;window.open(whatsappUrl(text),'_blank','noopener,noreferrer')}
+document.addEventListener('click',e=>{const add=e.target.closest('[data-add]');if(add){addToCart(add.dataset.add);return}const qty=e.target.closest('[data-qty]');if(qty){const item=cart.get(qty.dataset.qty);if(item){item.qty+=Number(qty.dataset.change);if(item.qty<=0)cart.delete(qty.dataset.qty);renderCart()}return}const filter=e.target.closest('.filter-chip');if(filter){activeFilter=filter.dataset.filter;$$('.filter-chip').forEach(b=>b.classList.toggle('active',b===filter));renderProducts();return}const link=e.target.closest('[data-filter-link]');if(link){activeFilter=link.dataset.filterLink;$$('.filter-chip').forEach(b=>b.classList.toggle('active',b.dataset.filter===activeFilter));renderProducts()}});
+$('#search-input').addEventListener('input',e=>{searchTerm=e.target.value.trim();renderProducts()});
+$('#cart-open').addEventListener('click',openCart);$('#cart-close').addEventListener('click',closeCart);$('#drawer-backdrop').addEventListener('click',closeCart);$('#checkout-button').addEventListener('click',checkout);$('#contact-form').addEventListener('submit',contactSubmit);
+$('#menu-toggle').addEventListener('click',()=>{const nav=$('#main-nav'),open=nav.classList.toggle('open');$('#menu-toggle').setAttribute('aria-expanded',String(open));$('#menu-toggle').setAttribute('aria-label',open?'Cerrar menú':'Abrir menú')});
+$('#main-nav').addEventListener('click',e=>{if(e.target.closest('a')){$('#main-nav').classList.remove('open');$('#menu-toggle').setAttribute('aria-expanded','false')}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#cart-drawer').classList.contains('open'))closeCart()});
+$('#year').textContent=new Date().getFullYear();$('#contact-phone').textContent=cfg.whatsapp&&cfg.whatsapp!=='51900000000'?`+${cfg.whatsapp}`:'Escríbenos para coordinar';
+renderProducts();renderCart();
